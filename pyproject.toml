@@ -1,0 +1,13 @@
+[project]
+name = "book-ai-tools-data"
+version = "0.1.0"
+description = "AI tools discovery and market intelligence data ingestion."
+requires-python = ">=3.11"
+dependencies = ["httpx>=0.27", "beautifulsoup4>=4.12", "python-dotenv>=1.0"]
+
+[project.scripts]
+book-ai-tools-data = "book_ai_tools.ingest:main"
+book-ai-tools-data-api = "book_ai_tools.api:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

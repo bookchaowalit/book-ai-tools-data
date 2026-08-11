@@ -1,0 +1,3 @@
+[console_scripts]
+book-ai-tools-data = book_ai_tools.ingest:main
+book-ai-tools-data-api = book_ai_tools.api:main

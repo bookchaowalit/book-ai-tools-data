@@ -6,6 +6,8 @@ Migration status: shared `data_lake.product_adapter`. Each directory page is
 landed separately (provider + URL). HTML exact bytes go to landing; Bronze holds
 structured tool fields + `raw_object_key`.
 
+Collection cron: `bash setup_cron.sh install` runs Futurepedia HTML capture daily at 11:00 into `data/exported/`. Lake ingest remains a separate command.
+
 ## Data contract
 
 | Field | Value |

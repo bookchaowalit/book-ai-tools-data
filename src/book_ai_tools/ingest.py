@@ -421,7 +421,9 @@ def load_previous_urls(output_dir: Optional[Path] = None) -> set:
 
 
 def _projection_timestamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # UTC: readers (product_store.parse_ts / _freshness) treat naive stamps as
+    # UTC, so a host-local stamp looked hours fresher (or older) than it was.
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def project_tools_csv(tools: list[dict], output_dir: Path) -> Path:

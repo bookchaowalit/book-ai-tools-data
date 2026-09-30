@@ -17,6 +17,10 @@ Score: 8/10 -> 8.5/10 — Futurepedia parsing is covered by a saved HTML fixture
 
 ## Done in this pass (pass 4: edge cases)
 
+- `config.env_bool` returned False for anything but a true-ish word, so
+  `FREE_ONLY=` (blank line in .env/compose) or a typo silently disabled the
+  free-only guard; blank/unrecognised values now keep the safe default
+  (`EnvBoolTests` in `tests/test_edge_cases.py`).
 - `quality.finite_number` raised `OverflowError` for a JSON integer beyond
   float range (`1` followed by 400 zeros); it now returns `None`.
 - `--min-upvotes` filter crashed the whole run with `ValueError`: it gated

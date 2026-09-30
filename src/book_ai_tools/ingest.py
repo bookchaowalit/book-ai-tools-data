@@ -63,9 +63,13 @@ try:
     from .store import seed_fixtures
     from . import lake as _lake
     from .fsutil import atomic_append_csv, atomic_write_csv
+    from .quality import non_negative_number
 except ImportError:  # pragma: no cover
     _dp_config = None
     _lake = None
+
+    def non_negative_number(value):
+        return None
 
     def evaluate_provider(name):
         class D:
@@ -634,8 +638,8 @@ def run_live_ingest(
         unique_tools = [
             t
             for t in unique_tools
-            if str(t.get("upvotes") or "0").replace(".", "", 1).isdigit()
-            and float(t.get("upvotes") or 0) >= min_upvotes
+            # isdigit() is also true for "²"/"①", which float() rejects.
+            if (non_negative_number(t.get("upvotes")) or 0) >= min_upvotes
         ]
 
     opportunities = detect_opportunities(unique_tools)

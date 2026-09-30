@@ -91,8 +91,14 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+# Zero-width space, word joiner, BOM and soft hyphen all render as nothing, so
+# a name made only of them must count as blank.
+_INVISIBLE = dict.fromkeys(map(ord, "\u200b\u2060\ufeff\u00ad"))
+
+
 def _clean_text(value: Any, limit: int = 1000) -> str:
-    return re.sub(r"\s+", " ", str(value or "")).strip()[:limit]
+    text = str(value or "").translate(_INVISIBLE)
+    return re.sub(r"\s+", " ", text).strip()[:limit]
 
 
 def _as_values(values: Iterable[str] | str | None, default: list[str]) -> list[str]:

@@ -15,6 +15,18 @@ Score: 8/10 -> 8.5/10 — Futurepedia parsing is covered by a saved HTML fixture
 - P2: Move the Futurepedia collector's CSV writers onto `book_ai_tools.fsutil` once the
   script can rely on the package being installed.
 
+## Done in this pass (pass 4: edge cases)
+
+- `quality.finite_number` raised `OverflowError` for a JSON integer beyond
+  float range (`1` followed by 400 zeros); it now returns `None`.
+- `--min-upvotes` filter crashed the whole run with `ValueError`: it gated
+  `float()` on `str.isdigit()`, which is also true for `²`/`①`; it now uses
+  `quality.non_negative_number`.
+- `scripts/scrape_ai_tools._clean_text` drops U+200B/U+2060/BOM/soft hyphen,
+  so a tool name made only of invisible characters is skipped as blank.
+- Verified: `tests/test_edge_cases.py` (all 3 fail on the old code); full
+  suite 48 passed; ruff 0.15.8 + 0.16.9.
+
 ## Done in this pass (pass 3)
 
 - Offline Futurepedia parser test (`tests/test_futurepedia_parser.py` + saved HTML page):

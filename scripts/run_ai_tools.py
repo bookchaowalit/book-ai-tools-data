@@ -13,15 +13,31 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from scrape_ai_tools import AIToolScraper
+# Provider classes are loaded only for a real collection. This keeps the
+# dependency-free dry-run path usable on an offline control-plane host.
+JOBS = (("ai_tools", None),)
 
-JOBS = (("ai_tools", AIToolScraper),)
 
-
-async def run_ai_tools(output_dir: Path, max_pages: int = 2) -> list[dict[str, Any]]:
+async def run_ai_tools(
+    output_dir: Path, max_pages: int = 2, *, dry_run: bool = False
+) -> list[dict[str, Any]]:
+    if dry_run:
+        return [
+            {
+                "job": name,
+                "status": "dry-run",
+                "source": "futurepedia",
+                "max_pages": max_pages,
+                "network": "not-used",
+                "writes": "not-used",
+            }
+            for name, _cls in JOBS
+        ]
     results: list[dict[str, Any]] = []
+    from scrape_ai_tools import AIToolScraper
+
     for name, cls in JOBS:
-        scraper = cls(
+        scraper = (cls or AIToolScraper)(
             sources=["futurepedia"],
             categories=["ai-agents", "productivity", "code"],
             max_pages=max_pages,
@@ -40,8 +56,9 @@ def main() -> int:
     parser.add_argument("--max-pages", type=int, default=2)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "data" / "exported")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--dry-run", action="store_true", help="Print the bounded job plan without collection or writes")
     args = parser.parse_args()
-    results = asyncio.run(run_ai_tools(args.output_dir, args.max_pages))
+    results = asyncio.run(run_ai_tools(args.output_dir, args.max_pages, dry_run=args.dry_run))
     if args.json:
         print(json.dumps(results, ensure_ascii=False))
     return 0

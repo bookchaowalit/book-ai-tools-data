@@ -48,7 +48,10 @@ Fields: `name`, `vendor`, `category`, `pricing`, `url`, `observed_at`
 
 ```bash
 pip install -e .
-pip install -r <solo-empire>/infra/requirements-data-lake.txt
+# Lake writes need the shared data-lake runtime: the [lake] extra installs the
+# pinned solo-empire-data-lake (plus pyarrow/duckdb); inside Solo Empire the
+# parent checkout's infra/scripts/data_lake is used instead
+pip install -e ".[lake]"
 
 python -m book_ai_tools.ingest --fixture
 python -m book_ai_tools.ingest --sources producthunt,taaft \
@@ -58,6 +61,9 @@ python -m book_ai_tools.api --host 127.0.0.1 --port 8107
 ```
 
 Lake failure exits non-zero and does **not** update `ai_tools.csv`.
+`--sources` accepts `producthunt`, `taaft` (aliases `taft`,
+`theresanaiforthat`) and `search`; unknown sources or a negative
+`--min-upvotes` exit with status 2.
 
 ## Optional Iceberg REST catalog read pilot
 
@@ -121,12 +127,25 @@ unchanged.
 | GET | `/v1/history` | Bronze history |
 | POST | `/v1/refresh` | 403 by default |
 
+## Data quality
+
+- Tool URLs with `javascript:`, `data:`, `vbscript:`, `mailto:`, `file:`,
+  `tel:` or `ftp:` schemes are never stored (`url`/`canonical_url` blank; a
+  record with no name either is dropped). Ids for normal URLs are unchanged.
+- `upvotes` must be a non-negative number; anything else is blanked.
+- NEW-tool alerts compare against the history *before* the current run.
+- Package CSV projections and the Futurepedia collector's snapshot/history/raw
+  files are written atomically (temp file + `os.replace`).
+- The Futurepedia parser resolves relative `/tool/<slug>` links and is tested
+  offline against `tests/pages/futurepedia_page.html`.
+
 ## Tests
 
 ```bash
 # What CI runs: the [lake] extra installs the pinned solo-empire-data-lake
-# runtime (plus pyarrow/duckdb), so Bronze/Silver lake tests run standalone
-python -m pip install -e ".[lake]" pytest ruff
+# runtime (plus pyarrow/duckdb), so Bronze/Silver lake tests run standalone;
+# requirements-collect.txt adds bs4 for the offline Futurepedia parser tests
+python -m pip install -e ".[lake]" -r requirements-collect.txt pytest ruff
 ruff check .
 python -m pytest -q -rs
 

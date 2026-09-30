@@ -10,13 +10,16 @@ the category/source attribution needed by downstream discovery consumers.
 from __future__ import annotations
 
 import csv
+import io
 import json
 import math
+import os
 import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 try:
     import httpx
@@ -222,7 +225,8 @@ def parse_html(
     seen: set[str] = set()
     for anchor in soup.select('a[href*="/tool/"]'):
         try:
-            url = canonical_tool_url(anchor.get("href", ""))
+            # Resolve relative card links ("/tool/<slug>") against the page URL.
+            url = canonical_tool_url(urljoin(normalized_source, str(anchor.get("href") or "")))
         except ValueError:
             continue
         tool_id = url.rsplit("/", 1)[-1]
@@ -317,35 +321,47 @@ def fetch_pages(
     return raw_pages, rows
 
 
-def write_raw(raw_pages: list[dict[str, Any]], output_dir: Path, stem: str) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / f"{stem}_raw.json"
-    path.write_text(json.dumps(raw_pages, ensure_ascii=False), encoding="utf-8")
+def _atomic_write_text(path: Path, text: str) -> Path:
+    """Write via a same-directory temp file + ``os.replace`` (no torn files)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
     return path
+
+
+def _csv_text(fieldnames: list[str], rows: Iterable[dict[str, Any]], captured_at: str, header: bool) -> str:
+    buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames, extrasaction="ignore")
+    if header:
+        writer.writeheader()
+    for row in rows:
+        writer.writerow({**row, "captured_at": captured_at})
+    return buffer.getvalue()
+
+
+def write_raw(raw_pages: list[dict[str, Any]], output_dir: Path, stem: str) -> Path:
+    return _atomic_write_text(output_dir / f"{stem}_raw.json", json.dumps(raw_pages, ensure_ascii=False))
 
 
 def write_snapshot(rows: list[dict[str, Any]], captured_at: str, output_dir: Path, stem: str) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / f"{stem}.csv"
-    with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=SNAPSHOT_FIELDS, extrasaction="ignore")
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({**row, "captured_at": captured_at})
-    return path
+    return _atomic_write_text(output_dir / f"{stem}.csv", _csv_text(SNAPSHOT_FIELDS, rows, captured_at, header=True))
 
 
 def append_history(rows: list[dict[str, Any]], captured_at: str, output_dir: Path, stem: str) -> Path:
-    output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / f"{stem}_history.csv"
-    exists = path.exists()
-    with path.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=HISTORY_FIELDS, extrasaction="ignore")
-        if not exists:
-            writer.writeheader()
-        for row in rows:
-            writer.writerow({**row, "captured_at": captured_at})
-    return path
+    existing = path.read_text(encoding="utf-8") if path.exists() else ""
+    if existing and not existing.endswith("\n"):
+        existing += "\r\n"
+    body = _csv_text(HISTORY_FIELDS, rows, captured_at, header=not existing.strip())
+    return _atomic_write_text(path, existing + body)
 
 
 class AIToolScraper:

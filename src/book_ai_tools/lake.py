@@ -10,6 +10,7 @@ from typing import Any, Optional
 from urllib.parse import urlparse, urlunparse
 
 from . import config
+from . import quality
 
 
 def _load_shared():
@@ -111,10 +112,21 @@ def default_data_lake_uri(solo_root: Optional[Path] = None) -> str:
     )
 
 
+_UNSAFE_SCHEMES = ("javascript:", "data:", "vbscript:", "mailto:", "file:", "tel:", "ftp:")
+
+
+def is_unsafe_url(url: str) -> bool:
+    """True for script/data/file-style URLs that must never be stored as a tool URL."""
+    return str(url or "").strip().lower().startswith(_UNSAFE_SCHEMES)
+
+
 def canonical_url(url: str) -> str:
-    """Stable tool identity from URL (scheme/host/path; drop query/fragment)."""
+    """Stable tool identity from URL (scheme/host/path; drop query/fragment).
+
+    Returns ``""`` for unsafe schemes (``javascript:``, ``data:`` ...).
+    """
     raw = str(url or "").strip()
-    if not raw:
+    if not raw or is_unsafe_url(raw):
         return ""
     if not raw.startswith(("http://", "https://")):
         raw = "https://" + raw
@@ -150,6 +162,12 @@ def normalize_tool_record(
     observed = observed_at or utc_now_iso()
     url = str(tool.get("url") or "").strip()
     can = canonical_url(url)
+    if is_unsafe_url(url):
+        # Script/data/file URLs are never stored as a clickable tool URL.
+        url = ""
+    upvotes = tool.get("upvotes", "")
+    if upvotes not in ("", None) and quality.non_negative_number(upvotes) is None:
+        upvotes = ""
     name = str(tool.get("name") or "").strip()
     vendor = str(tool.get("vendor") or tool.get("source") or provider or "").strip()
     category = str(tool.get("category") or "").strip()
@@ -167,7 +185,7 @@ def normalize_tool_record(
         "description": description[:500],
         "source": str(tool.get("source") or provider),
         "provider": provider,
-        "upvotes": tool.get("upvotes", ""),
+        "upvotes": upvotes,
         "tags": tool.get("tags", ""),
         "opportunity_tags": tool.get("opportunity_tags", ""),
         "source_page_url": source_page_url,

@@ -1,6 +1,6 @@
 # Upgrade plan — book-ai-tools-data
 
-Score: 7/10 -> 8/10 — lake tests now run standalone in CI via the pinned `[lake]` extra; remaining gaps are provider-parser fixtures and packaging polish.
+Score: 8/10 -> 8.5/10 — Futurepedia parsing is covered by a saved HTML fixture, NEW-tool alerts work again, unsafe URLs/bad upvotes are rejected and projections are atomic; remaining gaps are packaging polish.
 
 ## Backlog
 
@@ -10,9 +10,28 @@ Score: 7/10 -> 8/10 — lake tests now run standalone in CI via the pinned `[lak
   the other book-*-data repos (same SHA everywhere).
 - P2: Add a `[project.optional-dependencies] dev` extra and a `[build-system]` table so
   `pip install -e ".[dev]"` is the single documented setup.
-- P1: Cover `scripts/scrape_ai_tools.py` Futurepedia parsing with a saved HTML fixture (no network).
+- P1: Add saved-page fixtures for `parse_producthunt` / `parse_taft` (markdown inputs) like the
+  Futurepedia one, including the multi-line link joining in `parse_producthunt`.
+- P2: Move the Futurepedia collector's CSV writers onto `book_ai_tools.fsutil` once the
+  script can rely on the package being installed.
 
-## Done in this pass (pass 2)
+## Done in this pass (pass 3)
+
+- Offline Futurepedia parser test (`tests/test_futurepedia_parser.py` + saved HTML page):
+  canonical/duplicate/off-site/non-HTTPS/orphan cards, rating bounds, unsafe `Visit` links,
+  pricing/categories/bookmarks. The parser now resolves relative `/tool/<slug>` hrefs.
+- Fixed NEW-tool detection: previous URLs were loaded *after* this run appended to history,
+  so every tool looked seen and the alert never fired.
+- `lake.normalize_tool_record` blanks unsafe URL schemes and invalid upvotes (new `quality` module).
+- New `fsutil` module for atomic package projections; the collector script writes
+  snapshot/history/raw atomically too.
+- CLI: `--sources` validated with `taft`/`theresanaiforthat` aliases (help text named `taft`,
+  which was silently ignored); `--min-upvotes` must be >= 0. `utcnow()` replaced.
+- CI installs `requirements-collect.txt` so the parser tests run; README updated.
+- Verified: `pytest -q -rs` 42 passed, 0 skipped (was 28) with the `[lake]` venv; ruff
+  0.15.8 and 0.16.9 clean.
+
+## Done in pass 2
 
 - Added a `[lake]` extra pinning `solo-empire-data-lake` at `68fb5a9` (plus pyarrow/duckdb); CI
   installs `-e ".[lake]"`, asserts `data_lake` imports, and lake tests now run instead of skipping.

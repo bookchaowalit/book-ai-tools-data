@@ -83,6 +83,7 @@ class OrderingTests(unittest.TestCase):
                         run_live_ingest(
                             sources=["producthunt"],
                             output_dir=out,
+                            data_lake_uri=str(out / "lake"),
                             write_history=False,
                             project_csv=True,
                         )

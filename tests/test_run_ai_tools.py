@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from run_ai_tools import JOBS, run_ai_tools
+from run_ai_tools import JOBS, run_ai_tools  # noqa: E402
 
 
 class RunAIToolsTests(unittest.TestCase):

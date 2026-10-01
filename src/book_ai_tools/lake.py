@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -9,11 +10,16 @@ from typing import Any, Optional
 from urllib.parse import urlparse, urlunparse
 
 from . import config
+from . import quality
 
 
 def _load_shared():
     cur = config.PROJECT_ROOT.resolve()
-    for parent in [cur, *cur.parents]:
+    candidates = [cur, *cur.parents]
+    if config.SOLO_EMPIRE_ROOT:
+        # Explicit parent checkout (e.g. sibling clone) wins over the walk.
+        candidates.insert(0, Path(config.SOLO_EMPIRE_ROOT).expanduser().resolve())
+    for parent in candidates:
         scripts = parent / "infra" / "scripts"
         if (scripts / "data_lake" / "product_adapter.py").is_file():
             if str(scripts) not in sys.path:
@@ -71,10 +77,30 @@ def utc_now_iso() -> str:
 
 
 def find_solo_empire_root(start: Optional[Path] = None) -> Optional[Path]:
-    return _pa_mod().find_solo_empire_root(
+    """Return the Solo Empire root, or ``None`` when the shared adapter is absent."""
+    try:
+        pa = _pa_mod()
+    except ImportError:
+        return None
+    return pa.find_solo_empire_root(
         start or config.PROJECT_ROOT,
         solo_empire_root=config.SOLO_EMPIRE_ROOT,
     )
+
+
+def shared_runtime_available() -> bool:
+    """Return True when the shared ``data_lake`` runtime can be imported.
+
+    Covers the installed ``[lake]`` extra (``solo-empire-data-lake``) and the
+    ``SOLO_EMPIRE_ROOT`` / parent-checkout fallback used inside Solo Empire.
+    """
+    if importlib.util.find_spec("data_lake") is not None:
+        return True
+    try:
+        _pa_mod()
+    except ImportError:
+        return False
+    return True
 
 
 def default_data_lake_uri(solo_root: Optional[Path] = None) -> str:
@@ -86,10 +112,21 @@ def default_data_lake_uri(solo_root: Optional[Path] = None) -> str:
     )
 
 
+_UNSAFE_SCHEMES = ("javascript:", "data:", "vbscript:", "mailto:", "file:", "tel:", "ftp:")
+
+
+def is_unsafe_url(url: str) -> bool:
+    """True for script/data/file-style URLs that must never be stored as a tool URL."""
+    return str(url or "").strip().lower().startswith(_UNSAFE_SCHEMES)
+
+
 def canonical_url(url: str) -> str:
-    """Stable tool identity from URL (scheme/host/path; drop query/fragment)."""
+    """Stable tool identity from URL (scheme/host/path; drop query/fragment).
+
+    Returns ``""`` for unsafe schemes (``javascript:``, ``data:`` ...).
+    """
     raw = str(url or "").strip()
-    if not raw:
+    if not raw or is_unsafe_url(raw):
         return ""
     if not raw.startswith(("http://", "https://")):
         raw = "https://" + raw
@@ -125,6 +162,12 @@ def normalize_tool_record(
     observed = observed_at or utc_now_iso()
     url = str(tool.get("url") or "").strip()
     can = canonical_url(url)
+    if is_unsafe_url(url):
+        # Script/data/file URLs are never stored as a clickable tool URL.
+        url = ""
+    upvotes = tool.get("upvotes", "")
+    if upvotes not in ("", None) and quality.non_negative_number(upvotes) is None:
+        upvotes = ""
     name = str(tool.get("name") or "").strip()
     vendor = str(tool.get("vendor") or tool.get("source") or provider or "").strip()
     category = str(tool.get("category") or "").strip()
@@ -142,7 +185,7 @@ def normalize_tool_record(
         "description": description[:500],
         "source": str(tool.get("source") or provider),
         "provider": provider,
-        "upvotes": tool.get("upvotes", ""),
+        "upvotes": upvotes,
         "tags": tool.get("tags", ""),
         "opportunity_tags": tool.get("opportunity_tags", ""),
         "source_page_url": source_page_url,

@@ -72,10 +72,13 @@ def _lake_deps_available() -> bool:
         import pyarrow  # noqa: F401
     except ImportError:
         return False
-    return lake.find_solo_empire_root() is not None
+    return lake.shared_runtime_available()
 
 
-@unittest.skipUnless(_lake_deps_available(), "pyarrow/duckdb + monorepo required")
+@unittest.skipUnless(
+    _lake_deps_available(),
+    "pyarrow/duckdb + shared data_lake runtime required (pip install -e .[lake])",
+)
 class StoreLakeTests(unittest.TestCase):
     def test_bronze_not_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -217,7 +220,10 @@ class PolicyTests(unittest.TestCase):
             self.assertFalse(policy.evaluate_provider("paid_search").allowed)
 
 
-@unittest.skipUnless(_lake_deps_available(), "pyarrow/duckdb + monorepo required")
+@unittest.skipUnless(
+    _lake_deps_available(),
+    "pyarrow/duckdb + shared data_lake runtime required (pip install -e .[lake])",
+)
 class ApiContractTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -322,7 +328,7 @@ class ApiContractTests(unittest.TestCase):
 
 class SmokeCompileTests(unittest.TestCase):
     def test_modules_import(self):
-        from book_ai_tools import api, config as cfg, store
+        from book_ai_tools import api, config as cfg, store  # noqa: F401 (import smoke)
 
         self.assertEqual(cfg.SCHEMA_VERSION, "ai_tools.v1")
         self.assertEqual(int(cfg.API_PORT), 8107)

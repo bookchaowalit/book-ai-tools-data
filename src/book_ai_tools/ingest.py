@@ -21,7 +21,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -62,9 +62,14 @@ try:
     from .policy import evaluate_provider, require_provider, external_writes_allowed
     from .store import seed_fixtures
     from . import lake as _lake
+    from .fsutil import atomic_append_csv, atomic_write_csv
+    from .quality import non_negative_number
 except ImportError:  # pragma: no cover
     _dp_config = None
     _lake = None
+
+    def non_negative_number(value):
+        return None
 
     def evaluate_provider(name):
         class D:
@@ -420,7 +425,9 @@ def load_previous_urls(output_dir: Optional[Path] = None) -> set:
 
 
 def _projection_timestamp() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # UTC: readers (product_store.parse_ts / _freshness) treat naive stamps as
+    # UTC, so a host-local stamp looked hours fresher (or older) than it was.
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def project_tools_csv(tools: list[dict], output_dir: Path) -> Path:
@@ -443,11 +450,8 @@ def project_tools_csv(tools: list[dict], output_dir: Path) -> Path:
         "scraped_at",
     ]
     scraped = _projection_timestamp()
-    with open(filepath, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        for tool in tools:
-            writer.writerow({**tool, "scraped_at": scraped})
+    rows = [{k: tool.get(k, "") for k in fieldnames} | {"scraped_at": scraped} for tool in tools]
+    atomic_write_csv(filepath, fieldnames, rows)
     print(f"  Projected {len(tools)} tools → {filepath}")
     return filepath
 
@@ -472,13 +476,8 @@ def project_history_csv(tools: list[dict], output_dir: Path) -> Path:
         "scraped_at",
     ]
     scraped = _projection_timestamp()
-    file_exists = filepath.exists()
-    with open(filepath, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        if not file_exists:
-            writer.writeheader()
-        for tool in tools:
-            writer.writerow({**tool, "scraped_at": scraped})
+    rows = [{k: tool.get(k, "") for k in fieldnames} | {"scraped_at": scraped} for tool in tools]
+    atomic_append_csv(filepath, fieldnames, rows)
     print(f"  Projected +{len(tools)} history rows → {filepath}")
     return filepath
 
@@ -639,8 +638,8 @@ def run_live_ingest(
         unique_tools = [
             t
             for t in unique_tools
-            if str(t.get("upvotes") or "0").replace(".", "", 1).isdigit()
-            and float(t.get("upvotes") or 0) >= min_upvotes
+            # isdigit() is also true for "²"/"①", which float() rejects.
+            if (non_negative_number(t.get("upvotes")) or 0) >= min_upvotes
         ]
 
     opportunities = detect_opportunities(unique_tools)
@@ -652,8 +651,11 @@ def run_live_ingest(
         )
 
     if project_csv and unique_tools:
+        # Read the previous history before this run appends to it; reading it
+        # afterwards made every tool look "seen" and NEW-tool alerts never fired.
+        previous_urls = load_previous_urls(output_dir)
         # Normalize projection rows
-        observed = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        observed = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         rows = []
         for t in unique_tools:
             rec = (
@@ -684,7 +686,6 @@ def run_live_ingest(
         if write_history:
             project_history_csv(rows, output_dir)
 
-        previous_urls = load_previous_urls(output_dir)
         new_tools = [t for t in unique_tools if t.get("url") not in previous_urls]
         if new_tools:
             print(f"\n  *** {len(new_tools)} NEW AI TOOLS detected ***")
@@ -717,6 +718,10 @@ def run_live_ingest(
     }
 
 
+KNOWN_SOURCES = ("producthunt", "taaft", "search")
+_SOURCE_ALIASES = {"taft": "taaft", "theresanaiforthat": "taaft"}
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Scrape AI tools (lake-first; public directories)"
@@ -724,7 +729,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument(
         "--sources",
         default="producthunt,taaft",
-        help="Sources: producthunt, taft, search (search blocked under free-only)",
+        help="Sources: producthunt, taaft (alias: taft, theresanaiforthat), search "
+        "(search is blocked under free-only)",
     )
     parser.add_argument("--categories", default=",".join(DEFAULT_CATEGORIES))
     parser.add_argument("--min-upvotes", type=int, default=0)
@@ -736,7 +742,22 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
-    sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+    sources = list(
+        dict.fromkeys(
+            _SOURCE_ALIASES.get(s, s)
+            for s in (part.strip().lower() for part in args.sources.split(","))
+            if s
+        )
+    )
+    unknown = [s for s in sources if s not in KNOWN_SOURCES]
+    if unknown:
+        parser.error(
+            f"unknown --sources {','.join(unknown)} (choose from {', '.join(KNOWN_SOURCES)})"
+        )
+    if not sources:
+        parser.error("--sources must name at least one source")
+    if args.min_upvotes < 0:
+        parser.error("--min-upvotes must be >= 0")
     output_dir = Path(args.output_dir)
 
     if args.fixture or args.dry_run:

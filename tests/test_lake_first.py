@@ -83,6 +83,7 @@ class OrderingTests(unittest.TestCase):
                         run_live_ingest(
                             sources=["producthunt"],
                             output_dir=out,
+                            data_lake_uri=str(out / "lake"),
                             write_history=False,
                             project_csv=True,
                         )
@@ -90,8 +91,8 @@ class OrderingTests(unittest.TestCase):
 
 
 @unittest.skipUnless(
-    lake.find_solo_empire_root() is not None,
-    "monorepo required",
+    lake.shared_runtime_available(),
+    "shared data_lake runtime not installed (pip install -e .[lake])",
 )
 class RealLakeTests(unittest.TestCase):
     def test_html_landing_replay_and_fields(self):

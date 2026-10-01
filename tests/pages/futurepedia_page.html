@@ -1,0 +1,36 @@
+<!doctype html>
+<html><body>
+<main>
+  <!-- 1: complete card -->
+  <div class="rounded shadow-lg">
+    <a href="https://www.futurepedia.io/tool/alpha-writer"><p>Alpha Writer</p></a>
+    <img src="https://cdn.futurepedia.io/alpha.png?w=64" alt="">
+    <p class="text-muted-foreground">Drafts blog posts with AI.</p>
+    <span>Rated 4.5 out of 5 (1,234)</span>
+    <span>Freemium</span>
+    <a href="/ai-tools/productivity">#Productivity</a>
+    <a href="/ai-tools/copywriting">#Copywriting</a>
+    <a href="/ai-tools/productivity">#Productivity</a>
+    <span>567 Add bookmark</span>
+    <a href="https://alpha.example.com/start/?utm_source=futurepedia">Visit</a>
+  </div>
+  <!-- 2: relative tool link, out-of-range rating, unsafe website link -->
+  <div class="shadow-lg">
+    <a href="/tool/beta-bot/"><p>Beta Bot</p></a>
+    <span>Rated 7 out of 5</span>
+    <span>Free Trial</span>
+    <a href="javascript:alert(1)">Visit</a>
+  </div>
+  <!-- 3: duplicate of card 1 (must be dropped) -->
+  <div class="shadow-lg">
+    <a href="https://futurepedia.io/tool/alpha-writer"><p>Alpha Writer (dup)</p></a>
+  </div>
+  <!-- 4: non-HTTPS and off-site tool links (must be dropped) -->
+  <div class="shadow-lg">
+    <a href="http://www.futurepedia.io/tool/gamma"><p>Gamma</p></a>
+    <a href="https://evil.example/tool/delta"><p>Delta</p></a>
+  </div>
+  <!-- 5: tool link outside any card (must be dropped) -->
+  <a href="https://www.futurepedia.io/tool/orphan"><p>Orphan</p></a>
+</main>
+</body></html>

@@ -1,0 +1,8 @@
+system_id: bookchaowalit/book-ai/book-ai-tools-data
+prefix: CARD
+brand: "AI TOOLS DATA"
+subtitle: "ข้อมูลเครื่องมือ AI แบบ lake-first พร้อม lineage และ API อ่านอย่างเดียว"
+footer: "Book AI Tools Data — Product Card"
+color: "#2f4b6e"
+audience: internal
+tier: L0

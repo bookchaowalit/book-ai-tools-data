@@ -8,6 +8,20 @@ structured tool fields + `raw_object_key`.
 
 Collection cron: `bash setup_cron.sh install` runs Futurepedia HTML capture daily at 11:00 into `data/exported/`. Lake ingest remains a separate command.
 
+> **Source terms decision (2026-10-15, BOO-243):** Futurepedia is **not approved**
+> for durable directory/API reuse until a written extraction-and-reuse scope
+> exists. Futurepedia's terms incorporate the
+> [HubSpot Website Terms](https://legal.hubspot.com/website-terms-of-use). Those
+> terms limit use to personal, non-commercial purposes and prohibit
+> redistribution, commercial exploitation and automation above human request
+> rates. A low request rate is not storage or republication permission. Do not
+> install the cron above or ingest Futurepedia rows into the lake.
+> `ai-tools.v1` stays non-approved and the coverage registry marks ai-tools
+> permission `blocked`. Offline parser fixtures and tests are unaffected. Other
+> directories (Product Hunt, TAAFT) have not been assessed. This is an owner
+> decision based on the published terms, not legal advice. Record: [architecture-docs `systems/ai-data/source-terms-decisions-2026-10-15.md`](https://github.com/bookchaowalit/architecture-docs/blob/main/systems/ai-data/source-terms-decisions-2026-10-15.md).
+> Sources: [Futurepedia terms](https://www.futurepedia.io/terms-of-service).
+
 ## Data contract
 
 | Field | Value |

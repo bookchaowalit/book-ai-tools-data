@@ -154,6 +154,8 @@ def canonical_url(url: str) -> str:
 def stable_tool_id(url: str) -> str:
     can = canonical_url(url)
     if not can:
+        # SHA-1 only derives a stable record ID (not a security control); changing it would change stored IDs.
+        # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
         digest = hashlib.sha1(str(url).encode("utf-8")).hexdigest()[:16]
         return f"hash:{digest}"
     # Path-safe for /v1/records/{id}

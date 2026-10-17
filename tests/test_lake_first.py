@@ -1,4 +1,5 @@
 """Lake-first tests for book-ai-tools-data."""
+
 from __future__ import annotations
 
 import sys

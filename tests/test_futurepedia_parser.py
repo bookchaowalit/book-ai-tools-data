@@ -1,4 +1,5 @@
 """Offline Futurepedia parsing against a saved HTML page (no network)."""
+
 from __future__ import annotations
 
 import csv
@@ -19,13 +20,19 @@ except (ImportError, RuntimeError):  # bs4/httpx missing: collector extras not i
 SOURCE = "https://www.futurepedia.io/ai-tools"
 
 
-@unittest.skipIf(fp is None, "collector deps missing (pip install -r requirements-collect.txt)")
+@unittest.skipIf(
+    fp is None, "collector deps missing (pip install -r requirements-collect.txt)"
+)
 class FuturepediaParserTests(unittest.TestCase):
     def setUp(self):
-        self.rows = fp.parse_html(FIXTURE.read_text(encoding="utf-8"), SOURCE, "productivity", 2)
+        self.rows = fp.parse_html(
+            FIXTURE.read_text(encoding="utf-8"), SOURCE, "productivity", 2
+        )
 
     def test_keeps_only_unique_canonical_cards(self):
-        self.assertEqual([r["tool_id"] for r in self.rows], ["alpha-writer", "beta-bot"])
+        self.assertEqual(
+            [r["tool_id"] for r in self.rows], ["alpha-writer", "beta-bot"]
+        )
         self.assertEqual(
             [r["url"] for r in self.rows],
             [
@@ -46,7 +53,9 @@ class FuturepediaParserTests(unittest.TestCase):
         self.assertEqual(alpha["website_url"], "https://alpha.example.com/start")
         self.assertEqual(alpha["image_url"], "https://cdn.futurepedia.io/alpha.png")
         self.assertEqual(alpha["source_category"], "productivity")
-        self.assertEqual(alpha["source_url"], "https://www.futurepedia.io/ai-tools/productivity")
+        self.assertEqual(
+            alpha["source_url"], "https://www.futurepedia.io/ai-tools/productivity"
+        )
         self.assertEqual(alpha["page_number"], 2)
 
     def test_sparse_card_rejects_bad_values(self):
@@ -80,7 +89,10 @@ class FuturepediaParserTests(unittest.TestCase):
             self.assertEqual(list(snapshot[0]), fp.SNAPSHOT_FIELDS)
             with (out / "ai_tools_history.csv").open(newline="", encoding="utf-8") as f:
                 history = list(csv.DictReader(f))
-            self.assertEqual([h["tool_id"] for h in history], ["alpha-writer", "beta-bot", "alpha-writer"])
+            self.assertEqual(
+                [h["tool_id"] for h in history],
+                ["alpha-writer", "beta-bot", "alpha-writer"],
+            )
 
 
 if __name__ == "__main__":

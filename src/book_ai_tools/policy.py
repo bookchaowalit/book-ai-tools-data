@@ -1,4 +1,5 @@
 """Free-only provider policy for book-ai-tools-data."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,11 +9,23 @@ from . import config
 
 
 PROVIDERS: dict[str, dict[str, str]] = {
-    'public_directories': {'status': 'free', 'reason': 'Direct public directory/page collection'},
-    'offline_fixtures': {'status': 'free', 'reason': 'Local fixture data'},
-    'firecrawl': {'status': 'blocked', 'reason': 'Firecrawl paid/optional path disabled'},
-    'brave_search_api': {'status': 'blocked', 'reason': 'Brave Search API key path disabled'},
-    'paid_search': {'status': 'blocked', 'reason': 'Paid search APIs disabled by free-only policy'},
+    "public_directories": {
+        "status": "free",
+        "reason": "Direct public directory/page collection",
+    },
+    "offline_fixtures": {"status": "free", "reason": "Local fixture data"},
+    "firecrawl": {
+        "status": "blocked",
+        "reason": "Firecrawl paid/optional path disabled",
+    },
+    "brave_search_api": {
+        "status": "blocked",
+        "reason": "Brave Search API key path disabled",
+    },
+    "paid_search": {
+        "status": "blocked",
+        "reason": "Paid search APIs disabled by free-only policy",
+    },
 }
 
 

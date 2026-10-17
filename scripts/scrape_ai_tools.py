@@ -25,7 +25,9 @@ try:
     import httpx
     from bs4 import BeautifulSoup
 except ImportError as exc:  # pragma: no cover - requirements.txt supplies both
-    raise RuntimeError("httpx and beautifulsoup4 are required for AI tool capture") from exc
+    raise RuntimeError(
+        "httpx and beautifulsoup4 are required for AI tool capture"
+    ) from exc
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,7 +90,12 @@ HISTORY_FIELDS = [
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 # Zero-width space, word joiner, BOM and soft hyphen all render as nothing, so
@@ -117,8 +124,12 @@ def _as_values(values: Iterable[str] | str | None, default: list[str]) -> list[s
 def normalize_categories(values: Iterable[str] | str | None) -> list[str]:
     categories = _as_values(values, DEFAULT_CATEGORIES)
     if not categories or len(categories) > MAX_CATEGORIES:
-        raise ValueError(f"categories must contain 1-{MAX_CATEGORIES} Futurepedia paths")
-    invalid = [category for category in categories if not CATEGORY_RE.fullmatch(category)]
+        raise ValueError(
+            f"categories must contain 1-{MAX_CATEGORIES} Futurepedia paths"
+        )
+    invalid = [
+        category for category in categories if not CATEGORY_RE.fullmatch(category)
+    ]
     if invalid:
         raise ValueError(f"invalid Futurepedia category path(s): {', '.join(invalid)}")
     return categories
@@ -128,7 +139,11 @@ def normalize_base_url(value: str = BASE_URL) -> str:
     parts = urlsplit(str(value).strip())
     host = (parts.hostname or "").lower()
     path = parts.path.rstrip("/") or "/"
-    if parts.scheme.lower() != "https" or not ALLOWED_HOST.fullmatch(host) or path != "/ai-tools":
+    if (
+        parts.scheme.lower() != "https"
+        or not ALLOWED_HOST.fullmatch(host)
+        or path != "/ai-tools"
+    ):
         raise ValueError("Futurepedia base URL must be an HTTPS /ai-tools page")
     return urlunsplit(("https", host, path, "", ""))
 
@@ -142,7 +157,11 @@ def normalize_category_url(value: str, base_url: str = BASE_URL) -> str:
 
 
 def build_page_url(base_url: str, category: str, page_number: int) -> str:
-    if isinstance(page_number, bool) or not isinstance(page_number, int) or page_number < 1:
+    if (
+        isinstance(page_number, bool)
+        or not isinstance(page_number, int)
+        or page_number < 1
+    ):
         raise ValueError("page_number must be a positive integer")
     category_url = normalize_category_url(category, base_url)
     return f"{category_url}?page={page_number}"
@@ -164,7 +183,9 @@ def _external_url(value: str | None) -> str:
     parts = urlsplit(str(value).strip())
     if parts.scheme.lower() != "https" or not parts.hostname:
         return ""
-    return urlunsplit(("https", parts.hostname.lower(), parts.path.rstrip("/") or "/", "", ""))
+    return urlunsplit(
+        ("https", parts.hostname.lower(), parts.path.rstrip("/") or "/", "", "")
+    )
 
 
 def _card_for(anchor: Any) -> Any:
@@ -224,7 +245,10 @@ def parse_html(
 ) -> list[dict[str, Any]]:
     """Parse Futurepedia cards, keeping canonical tool URLs only."""
 
-    normalized_source = normalize_category_url(source_category, normalize_base_url(source_url.split("/ai-tools")[0] + "/ai-tools"))
+    normalized_source = normalize_category_url(
+        source_category,
+        normalize_base_url(source_url.split("/ai-tools")[0] + "/ai-tools"),
+    )
     category = normalized_source.rsplit("/", 1)[-1]
     soup = BeautifulSoup(html, "html.parser")
     rows: list[dict[str, Any]] = []
@@ -232,7 +256,9 @@ def parse_html(
     for anchor in soup.select('a[href*="/tool/"]'):
         try:
             # Resolve relative card links ("/tool/<slug>") against the page URL.
-            url = canonical_tool_url(urljoin(normalized_source, str(anchor.get("href") or "")))
+            url = canonical_tool_url(
+                urljoin(normalized_source, str(anchor.get("href") or ""))
+            )
         except ValueError:
             continue
         tool_id = url.rsplit("/", 1)[-1]
@@ -242,12 +268,22 @@ def parse_html(
         if card is None:
             continue
         title = card.select_one('a[href*="/tool/"] p')
-        name = _clean_text(title.get_text(" ", strip=True) if title else anchor.get_text(" ", strip=True), 300)
+        name = _clean_text(
+            title.get_text(" ", strip=True)
+            if title
+            else anchor.get_text(" ", strip=True),
+            300,
+        )
         if not name:
             continue
         description_node = card.select_one("p.text-muted-foreground")
         website_anchor = next(
-            (candidate for candidate in card.select("a[href]") if _clean_text(candidate.get_text(" ", strip=True)).casefold() == "visit"),
+            (
+                candidate
+                for candidate in card.select("a[href]")
+                if _clean_text(candidate.get_text(" ", strip=True)).casefold()
+                == "visit"
+            ),
             None,
         )
         image = card.find("img")
@@ -256,9 +292,16 @@ def parse_html(
             {
                 "tool_id": tool_id,
                 "name": name,
-                "description": _clean_text(description_node.get_text(" ", strip=True) if description_node else "", 1000),
+                "description": _clean_text(
+                    description_node.get_text(" ", strip=True)
+                    if description_node
+                    else "",
+                    1000,
+                ),
                 "url": url,
-                "website_url": _external_url(website_anchor.get("href") if website_anchor else None),
+                "website_url": _external_url(
+                    website_anchor.get("href") if website_anchor else None
+                ),
                 "categories": _categories(card),
                 "source_category": category,
                 "rating": rating,
@@ -294,11 +337,23 @@ def fetch_pages(
     limit: int,
     min_rows: int = MIN_ROWS,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    if isinstance(max_pages, bool) or not isinstance(max_pages, int) or not 1 <= max_pages <= MAX_PAGES:
+    if (
+        isinstance(max_pages, bool)
+        or not isinstance(max_pages, int)
+        or not 1 <= max_pages <= MAX_PAGES
+    ):
         raise ValueError(f"max_pages must be an integer from 1 to {MAX_PAGES}")
-    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIMIT:
+    if (
+        isinstance(limit, bool)
+        or not isinstance(limit, int)
+        or not 1 <= limit <= MAX_LIMIT
+    ):
         raise ValueError(f"limit must be an integer from 1 to {MAX_LIMIT}")
-    if isinstance(min_rows, bool) or not isinstance(min_rows, int) or not 1 <= min_rows <= limit:
+    if (
+        isinstance(min_rows, bool)
+        or not isinstance(min_rows, int)
+        or not 1 <= min_rows <= limit
+    ):
         raise ValueError(f"min_rows must be an integer from 1 to {limit}")
     normalized_base = normalize_base_url(base_url)
     raw_pages: list[dict[str, Any]] = []
@@ -317,20 +372,35 @@ def fetch_pages(
             )
             response.raise_for_status()
             if not response.content:
-                raise ValueError(f"Futurepedia page {category}/{page_number} response is empty")
-            page_rows = parse_html(response.text, normalized_base, category, page_number)
-            raw_pages.append({"category": category, "page_number": page_number, "url": str(response.url), "html": response.text})
+                raise ValueError(
+                    f"Futurepedia page {category}/{page_number} response is empty"
+                )
+            page_rows = parse_html(
+                response.text, normalized_base, category, page_number
+            )
+            raw_pages.append(
+                {
+                    "category": category,
+                    "page_number": page_number,
+                    "url": str(response.url),
+                    "html": response.text,
+                }
+            )
             rows.extend(page_rows)
     rows = _dedupe_rows(rows)[:limit]
     if len(rows) < min_rows:
-        raise ValueError(f"Futurepedia capture produced only {len(rows)} tools; need at least {min_rows}")
+        raise ValueError(
+            f"Futurepedia capture produced only {len(rows)} tools; need at least {min_rows}"
+        )
     return raw_pages, rows
 
 
 def _atomic_write_text(path: Path, text: str) -> Path:
     """Write via a same-directory temp file + ``os.replace`` (no torn files)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
@@ -343,7 +413,12 @@ def _atomic_write_text(path: Path, text: str) -> Path:
     return path
 
 
-def _csv_text(fieldnames: list[str], rows: Iterable[dict[str, Any]], captured_at: str, header: bool) -> str:
+def _csv_text(
+    fieldnames: list[str],
+    rows: Iterable[dict[str, Any]],
+    captured_at: str,
+    header: bool,
+) -> str:
     buffer = io.StringIO(newline="")
     writer = csv.DictWriter(buffer, fieldnames=fieldnames, extrasaction="ignore")
     if header:
@@ -354,14 +429,23 @@ def _csv_text(fieldnames: list[str], rows: Iterable[dict[str, Any]], captured_at
 
 
 def write_raw(raw_pages: list[dict[str, Any]], output_dir: Path, stem: str) -> Path:
-    return _atomic_write_text(output_dir / f"{stem}_raw.json", json.dumps(raw_pages, ensure_ascii=False))
+    return _atomic_write_text(
+        output_dir / f"{stem}_raw.json", json.dumps(raw_pages, ensure_ascii=False)
+    )
 
 
-def write_snapshot(rows: list[dict[str, Any]], captured_at: str, output_dir: Path, stem: str) -> Path:
-    return _atomic_write_text(output_dir / f"{stem}.csv", _csv_text(SNAPSHOT_FIELDS, rows, captured_at, header=True))
+def write_snapshot(
+    rows: list[dict[str, Any]], captured_at: str, output_dir: Path, stem: str
+) -> Path:
+    return _atomic_write_text(
+        output_dir / f"{stem}.csv",
+        _csv_text(SNAPSHOT_FIELDS, rows, captured_at, header=True),
+    )
 
 
-def append_history(rows: list[dict[str, Any]], captured_at: str, output_dir: Path, stem: str) -> Path:
+def append_history(
+    rows: list[dict[str, Any]], captured_at: str, output_dir: Path, stem: str
+) -> Path:
     path = output_dir / f"{stem}_history.csv"
     existing = path.read_text(encoding="utf-8") if path.exists() else ""
     if existing and not existing.endswith("\n"):
@@ -387,16 +471,32 @@ class AIToolScraper:
     ) -> None:
         requested_sources = _as_values(sources, ["futurepedia"])
         if requested_sources != ["futurepedia"]:
-            raise ValueError("AIToolScraper currently supports only the futurepedia source")
+            raise ValueError(
+                "AIToolScraper currently supports only the futurepedia source"
+            )
         self.categories = normalize_categories(categories)
-        if isinstance(max_pages, bool) or not isinstance(max_pages, int) or not 1 <= max_pages <= MAX_PAGES:
+        if (
+            isinstance(max_pages, bool)
+            or not isinstance(max_pages, int)
+            or not 1 <= max_pages <= MAX_PAGES
+        ):
             raise ValueError(f"max_pages must be an integer from 1 to {MAX_PAGES}")
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIMIT:
+        if (
+            isinstance(limit, bool)
+            or not isinstance(limit, int)
+            or not 1 <= limit <= MAX_LIMIT
+        ):
             raise ValueError(f"limit must be an integer from 1 to {MAX_LIMIT}")
-        if isinstance(min_rows, bool) or not isinstance(min_rows, int) or not 1 <= min_rows <= limit:
+        if (
+            isinstance(min_rows, bool)
+            or not isinstance(min_rows, int)
+            or not 1 <= min_rows <= limit
+        ):
             raise ValueError(f"min_rows must be an integer from 1 to {limit}")
         if not re.fullmatch(r"[a-z0-9_]+", output_stem):
-            raise ValueError("output_stem must contain only lowercase letters, numbers, and underscores")
+            raise ValueError(
+                "output_stem must contain only lowercase letters, numbers, and underscores"
+            )
         self.max_pages = max_pages
         self.limit = limit
         self.min_rows = min_rows
@@ -415,8 +515,12 @@ class AIToolScraper:
         )
         captured_at = _utc_now()
         raw_path = write_raw(raw_pages, self.output_dir, self.output_stem)
-        snapshot_path = write_snapshot(rows, captured_at, self.output_dir, self.output_stem)
-        history_path = append_history(rows, captured_at, self.output_dir, self.output_stem)
+        snapshot_path = write_snapshot(
+            rows, captured_at, self.output_dir, self.output_stem
+        )
+        history_path = append_history(
+            rows, captured_at, self.output_dir, self.output_stem
+        )
         print(f"[{self.output_stem}] {len(rows)} tools -> {snapshot_path}")
         return [
             {

@@ -388,12 +388,12 @@ def fetch_ai_tool_directories() -> list:
     # Free-only: do not call Brave/Firecrawl.
     brave = evaluate_provider("brave_search_api")
     if not brave.allowed:
-        print(
-            f"  Directory search via Brave blocked ({brave.status}): {brave.reason}"
-        )
+        print(f"  Directory search via Brave blocked ({brave.status}): {brave.reason}")
     fire = evaluate_provider("firecrawl")
     if not fire.allowed:
-        print(f"  Directory search via Firecrawl blocked ({fire.status}): {fire.reason}")
+        print(
+            f"  Directory search via Firecrawl blocked ({fire.status}): {fire.reason}"
+        )
     paid = evaluate_provider("paid_search")
     if not paid.allowed:
         print(f"  Paid search blocked ({paid.status}): {paid.reason}")
@@ -450,7 +450,10 @@ def project_tools_csv(tools: list[dict], output_dir: Path) -> Path:
         "scraped_at",
     ]
     scraped = _projection_timestamp()
-    rows = [{k: tool.get(k, "") for k in fieldnames} | {"scraped_at": scraped} for tool in tools]
+    rows = [
+        {k: tool.get(k, "") for k in fieldnames} | {"scraped_at": scraped}
+        for tool in tools
+    ]
     atomic_write_csv(filepath, fieldnames, rows)
     print(f"  Projected {len(tools)} tools → {filepath}")
     return filepath
@@ -476,7 +479,10 @@ def project_history_csv(tools: list[dict], output_dir: Path) -> Path:
         "scraped_at",
     ]
     scraped = _projection_timestamp()
-    rows = [{k: tool.get(k, "") for k in fieldnames} | {"scraped_at": scraped} for tool in tools]
+    rows = [
+        {k: tool.get(k, "") for k in fieldnames} | {"scraped_at": scraped}
+        for tool in tools
+    ]
     atomic_append_csv(filepath, fieldnames, rows)
     print(f"  Projected +{len(tools)} history rows → {filepath}")
     return filepath
@@ -541,8 +547,7 @@ def run_live_ingest(
     project_csv: bool = True,
 ) -> dict[str, Any]:
     print(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-        "AI Tool Scraper (lake-first)"
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] AI Tool Scraper (lake-first)"
     )
     print(f"  Sources: {sources}")
     if data_lake_uri:

@@ -52,13 +52,21 @@ async def run_ai_tools(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run book-ai-tools-data Futurepedia collection")
+    parser = argparse.ArgumentParser(
+        description="Run book-ai-tools-data Futurepedia collection"
+    )
     parser.add_argument("--max-pages", type=int, default=2)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "data" / "exported")
     parser.add_argument("--json", action="store_true")
-    parser.add_argument("--dry-run", action="store_true", help="Print the bounded job plan without collection or writes")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the bounded job plan without collection or writes",
+    )
     args = parser.parse_args()
-    results = asyncio.run(run_ai_tools(args.output_dir, args.max_pages, dry_run=args.dry_run))
+    results = asyncio.run(
+        run_ai_tools(args.output_dir, args.max_pages, dry_run=args.dry_run)
+    )
     if args.json:
         print(json.dumps(results, ensure_ascii=False))
     return 0

@@ -1,4 +1,5 @@
 """Lake-first adapter for book-ai-tools-data (per provider/URL landing)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -20,7 +21,11 @@ def _load_shared():
     Falls back to a data-lake checkout named by ``SOLO_DATA_LAKE_ROOT``.
     """
     if importlib.util.find_spec("data_lake") is None and config.SOLO_DATA_LAKE_ROOT:
-        scripts = Path(config.SOLO_DATA_LAKE_ROOT).expanduser().resolve() / "infra" / "scripts"
+        scripts = (
+            Path(config.SOLO_DATA_LAKE_ROOT).expanduser().resolve()
+            / "infra"
+            / "scripts"
+        )
         if not (scripts / "data_lake" / "product_adapter.py").is_file():
             raise ImportError(
                 f"SOLO_DATA_LAKE_ROOT={config.SOLO_DATA_LAKE_ROOT} has no "
@@ -108,7 +113,15 @@ def default_data_lake_uri(solo_root: Optional[Path] = None) -> str:
     )
 
 
-_UNSAFE_SCHEMES = ("javascript:", "data:", "vbscript:", "mailto:", "file:", "tel:", "ftp:")
+_UNSAFE_SCHEMES = (
+    "javascript:",
+    "data:",
+    "vbscript:",
+    "mailto:",
+    "file:",
+    "tel:",
+    "ftp:",
+)
 
 
 def is_unsafe_url(url: str) -> bool:

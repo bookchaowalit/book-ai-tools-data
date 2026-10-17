@@ -1,4 +1,5 @@
 """Data-quality guards, new-tool detection and CLI validation for book-ai-tools-data."""
+
 from __future__ import annotations
 
 import contextlib
@@ -15,26 +16,44 @@ OBSERVED = "2026-08-01T12:00:00Z"
 
 
 def _tool(name: str, url: str, **extra) -> dict:
-    return {"name": name, "url": url, "source": "ProductHunt", "description": "", **extra}
+    return {
+        "name": name,
+        "url": url,
+        "source": "ProductHunt",
+        "description": "",
+        **extra,
+    }
 
 
 class ToolRecordQualityTests(unittest.TestCase):
     def test_unsafe_url_schemes_are_not_stored(self):
-        for url in ("javascript:alert(1)", " JavaScript:void(0)", "data:text/html,x", "file:///etc/passwd"):
+        for url in (
+            "javascript:alert(1)",
+            " JavaScript:void(0)",
+            "data:text/html,x",
+            "file:///etc/passwd",
+        ):
             with self.subTest(url=url):
                 self.assertEqual(lake.canonical_url(url), "")
                 rec = lake.normalize_tool_record(
-                    _tool("Tool", url), provider="public_directories", observed_at=OBSERVED
+                    _tool("Tool", url),
+                    provider="public_directories",
+                    observed_at=OBSERVED,
                 )
                 self.assertEqual((rec["url"], rec["canonical_url"]), ("", ""))
 
     def test_unsafe_url_without_name_is_dropped(self):
         records = lake.tool_records_from_list(
-            [_tool("", "javascript:alert(1)"), _tool("Real", "https://www.example.com/app/")],
+            [
+                _tool("", "javascript:alert(1)"),
+                _tool("Real", "https://www.example.com/app/"),
+            ],
             provider="public_directories",
             observed_at=OBSERVED,
         )
-        self.assertEqual([r["canonical_url"] for r in records], ["https://example.com/app"])
+        self.assertEqual(
+            [r["canonical_url"] for r in records], ["https://example.com/app"]
+        )
 
     def test_upvotes_must_be_non_negative_numbers(self):
         cases = {"12": "12", "-3": "", "nan": "", "lots": "", "": "", None: None, 7: 7}
@@ -49,7 +68,9 @@ class ToolRecordQualityTests(unittest.TestCase):
 
     def test_ids_unchanged_for_valid_urls(self):
         rec = lake.normalize_tool_record(
-            _tool("T", "https://www.Example.com/a/?ref=x"), provider="p", observed_at=OBSERVED
+            _tool("T", "https://www.Example.com/a/?ref=x"),
+            provider="p",
+            observed_at=OBSERVED,
         )
         self.assertEqual(rec["id"], "example.com_a")
 
@@ -65,9 +86,14 @@ class NewToolDetectionTests(unittest.TestCase):
         buf = io.StringIO()
         # Distinct raw bytes per run: identical bytes map to the same landing batch.
         raw = ("<html>" + ",".join(t["url"] for t in tools) + "</html>").encode()
-        with mock.patch.object(
-            ingest, "fetch_directory_page_raw", return_value=(raw, "text/html", tools)
-        ), contextlib.redirect_stdout(buf):
+        with (
+            mock.patch.object(
+                ingest,
+                "fetch_directory_page_raw",
+                return_value=(raw, "text/html", tools),
+            ),
+            contextlib.redirect_stdout(buf),
+        ):
             ingest.run_live_ingest(
                 sources=["producthunt"], output_dir=tmp, data_lake_uri=str(tmp / "lake")
             )
@@ -78,15 +104,24 @@ class NewToolDetectionTests(unittest.TestCase):
             out = Path(tmp)
             first = self._run(out, [_tool("A", "https://a.example/x")])
             self.assertIn("1 NEW AI TOOLS", first)
-            second = self._run(out, [_tool("A", "https://a.example/x"), _tool("B", "https://b.example/y")])
+            second = self._run(
+                out,
+                [_tool("A", "https://a.example/x"), _tool("B", "https://b.example/y")],
+            )
             self.assertIn("1 NEW AI TOOLS", second)
-            third = self._run(out, [_tool("B", "https://b.example/y"), _tool("A", "https://a.example/x")])
+            third = self._run(
+                out,
+                [_tool("B", "https://b.example/y"), _tool("A", "https://a.example/x")],
+            )
             self.assertNotIn("NEW AI TOOLS", third)
 
 
 class CliValidationTests(unittest.TestCase):
     def _exit_code(self, argv: list[str]) -> int:
-        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as ctx:
+        with (
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit) as ctx,
+        ):
             ingest.main(argv)
         return ctx.exception.code
 
@@ -97,20 +132,35 @@ class CliValidationTests(unittest.TestCase):
 
     def test_source_aliases_normalized(self):
         with mock.patch.object(ingest, "run_live_ingest") as run:
-            self.assertEqual(ingest.main(["--sources", "ProductHunt,taft,theresanaiforthat"]), 0)
+            self.assertEqual(
+                ingest.main(["--sources", "ProductHunt,taft,theresanaiforthat"]), 0
+            )
         self.assertEqual(run.call_args.kwargs["sources"], ["producthunt", "taaft"])
 
 
 class AtomicProjectionTests(unittest.TestCase):
     def test_projection_ignores_extra_keys_and_leaves_no_temp_files(self):
         rows = [{**_tool("A", "https://a.example"), "unexpected": 1}]
-        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
             out = Path(tmp)
             ingest.project_tools_csv(rows, out)
             ingest.project_history_csv(rows, out)
             ingest.project_history_csv(rows, out)
-            self.assertEqual(sorted(p.name for p in out.iterdir()), ["ai_tools.csv", "ai_tools_history.csv"])
-            self.assertEqual(len((out / "ai_tools_history.csv").read_text(encoding="utf-8").splitlines()), 3)
+            self.assertEqual(
+                sorted(p.name for p in out.iterdir()),
+                ["ai_tools.csv", "ai_tools_history.csv"],
+            )
+            self.assertEqual(
+                len(
+                    (out / "ai_tools_history.csv")
+                    .read_text(encoding="utf-8")
+                    .splitlines()
+                ),
+                3,
+            )
 
     def test_failed_write_keeps_previous_file(self):
         with tempfile.TemporaryDirectory() as tmp:

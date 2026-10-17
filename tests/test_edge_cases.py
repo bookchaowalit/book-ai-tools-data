@@ -1,4 +1,5 @@
 """Edge-case regressions: overflowing numbers, odd digits, invisible names."""
+
 from __future__ import annotations
 
 import contextlib
@@ -37,12 +38,28 @@ class EdgeCaseTests(unittest.TestCase):
 class UpvoteFilterTests(unittest.TestCase):
     def test_superscript_digit_upvotes_do_not_crash_the_filter(self) -> None:
         tools = [
-            {"name": "A", "url": "https://a.example/x", "source": "ProductHunt", "upvotes": "²"},
-            {"name": "B", "url": "https://b.example/y", "source": "ProductHunt", "upvotes": 50},
+            {
+                "name": "A",
+                "url": "https://a.example/x",
+                "source": "ProductHunt",
+                "upvotes": "²",
+            },
+            {
+                "name": "B",
+                "url": "https://b.example/y",
+                "source": "ProductHunt",
+                "upvotes": 50,
+            },
         ]
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
-            ingest, "fetch_directory_page_raw", return_value=(b"<html>x</html>", "text/html", tools)
-        ), contextlib.redirect_stdout(io.StringIO()):
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            mock.patch.object(
+                ingest,
+                "fetch_directory_page_raw",
+                return_value=(b"<html>x</html>", "text/html", tools),
+            ),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
             result = ingest.run_live_ingest(
                 sources=["producthunt"],
                 output_dir=Path(tmp),
@@ -68,6 +85,7 @@ class EnvBoolTests(unittest.TestCase):
             self.assertIs(self._parse(raw, False), True)
         for raw in ("0", "False", " no", "OFF"):
             self.assertIs(self._parse(raw, True), False)
+
 
 if __name__ == "__main__":
     unittest.main()

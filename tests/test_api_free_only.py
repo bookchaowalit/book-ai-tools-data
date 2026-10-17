@@ -1,4 +1,5 @@
 """Offline tests for book-ai-tools-data free-only API + lake-first."""
+
 from __future__ import annotations
 
 import json
@@ -143,9 +144,13 @@ class StoreLakeTests(unittest.TestCase):
             with _set_lake_uri(lake_uri), _set_read_mode("parquet"):
                 expected_tools = load_records()
                 expected_history = load_history()
-            with _set_lake_uri(lake_uri), _set_read_mode("iceberg"), mock.patch(
-                "data_lake.product_store.read_iceberg_rows",
-                side_effect=read_catalog_rows,
+            with (
+                _set_lake_uri(lake_uri),
+                _set_read_mode("iceberg"),
+                mock.patch(
+                    "data_lake.product_store.read_iceberg_rows",
+                    side_effect=read_catalog_rows,
+                ),
             ):
                 actual_tools = load_records()
                 actual_history = load_history()
@@ -171,9 +176,13 @@ class StoreLakeTests(unittest.TestCase):
                 ],
                 data_lake_uri=lake_uri,
             )
-            with _set_lake_uri(lake_uri), _set_read_mode("iceberg", "parquet"), mock.patch(
-                "data_lake.product_store.read_iceberg_rows",
-                side_effect=lake.LakeUnavailable("catalog unavailable"),
+            with (
+                _set_lake_uri(lake_uri),
+                _set_read_mode("iceberg", "parquet"),
+                mock.patch(
+                    "data_lake.product_store.read_iceberg_rows",
+                    side_effect=lake.LakeUnavailable("catalog unavailable"),
+                ),
             ):
                 payload = load_records()
 
@@ -196,9 +205,13 @@ class StoreLakeTests(unittest.TestCase):
                 ],
                 data_lake_uri=lake_uri,
             )
-            with _set_lake_uri(lake_uri), _set_read_mode("iceberg", "error"), mock.patch(
-                "data_lake.product_store.read_iceberg_rows",
-                side_effect=lake.LakeUnavailable("catalog credentials unavailable"),
+            with (
+                _set_lake_uri(lake_uri),
+                _set_read_mode("iceberg", "error"),
+                mock.patch(
+                    "data_lake.product_store.read_iceberg_rows",
+                    side_effect=lake.LakeUnavailable("catalog credentials unavailable"),
+                ),
             ):
                 payload = load_records()
 
@@ -283,13 +296,14 @@ class ApiContractTests(unittest.TestCase):
 
     def test_metadata_reports_iceberg_mode(self):
         def read_catalog_rows(contract, dataset, *, data_lake_uri=None, sql=None):
-            return lake.read_bronze_rows(
-                dataset, data_lake_uri=data_lake_uri, sql=sql
-            )
+            return lake.read_bronze_rows(dataset, data_lake_uri=data_lake_uri, sql=sql)
 
-        with _set_read_mode("iceberg"), mock.patch(
-            "data_lake.product_store.read_iceberg_rows",
-            side_effect=read_catalog_rows,
+        with (
+            _set_read_mode("iceberg"),
+            mock.patch(
+                "data_lake.product_store.read_iceberg_rows",
+                side_effect=read_catalog_rows,
+            ),
         ):
             status, body = self._get("/v1/metadata")
 
